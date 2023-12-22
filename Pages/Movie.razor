@@ -1,0 +1,196 @@
+﻿@using System.Net;
+@using Microsoft.EntityFrameworkCore;
+@using System.Text;
+@using BlazorApp1.Class;
+@inject NavigationManager NavigationManager;
+@page "/movie/{movieTitle?}"
+
+
+<PageTitle>Фильмы</PageTitle>
+
+<h1>Поиск по фильмам</h1>
+
+
+
+
+
+
+<div class="searchSection">
+    <input type="text" @bind="searchQuery" placeholder="Enter search query" style="width: 900px; height: 40px;" />
+    <button @onclick="Search" style="height: 40px;">Search</button>
+</div>
+
+
+
+@using (ApplicationContext db = new ApplicationContext())
+{
+    @if (movieTitle != null)
+    {
+        searchedMovies = db.Movies.Where(m => m.movieTitles.Contains(movieTitle)).
+        Include(m => m.actors).Include(m => m.director).Include(m => m.tag).ToList();
+
+        
+
+    }
+}
+
+
+@if (searchedMovies != null)
+{
+    GetImagesLinks(searchedMovies);
+    foreach (Class.Movie movie in searchedMovies)
+    {
+        <div class="box-for-movie">
+            <div class="box_for_img">
+                <img src=@imgForMovie width="150">
+            </div>
+
+            <h5>@movie.movieTitles</h5>
+
+
+            <div class="image-div">
+                <img src=@arrayImg[searchedMovies.IndexOf(movie)] width="200">
+            </div>
+
+            <p>Рейтинг @movie.movieRating</p>
+
+            <p>Теги
+                @if (movie.tag != null)
+                {
+                    <ul>
+                        @foreach (var tag in movie.tag)
+                        {
+                            <li>@tag.Name</li>
+                        }
+                    </ul>
+                }
+            </p>
+
+            <p>Актеры
+                @if (movie.actors != null)
+                {
+                    <ul>
+                        @foreach (var actor in movie.actors)
+                        {
+                            <li>@actor.Name</li>
+                        }
+                    </ul>
+                }
+            </p>
+
+            <p>Режиссеры
+                @if (movie.director != null)
+                {
+                    //для отображения в виде списка
+                    <ul>
+                        @foreach (var director in movie.director)
+                        {
+                            <li>@director.Name</li>
+                        }
+                    </ul>
+                }
+            </p>
+            @using (ApplicationContext db = new ApplicationContext())
+            {
+                <p>Похожие фильмы
+                        @if (true) movie.FindSimilarMovies();
+                        <ul>
+                            @foreach (var new_movie in movie.codes_of_top10.Split("|"))
+                            {
+                                Class.Movie mov = db.Movies.FirstOrDefault(m => m.MovieCode == new_movie);
+                                if (mov!= null){
+                                string new_Title = mov.movieTitles;
+                                string link = "/movie/" + new_Title.Replace(" ", "%20");
+                                //<li><a class="movie - link" @onclick="() => help_for_navig(new_Title)">@new_Title</a></li>
+                                <li><a class="movie-link" @onclick="() => help_for_navig(new_Title, link)">@new_Title</a></li>
+                            }
+                            }
+                        </ul>
+                    
+
+                </p>
+            }
+        </div>
+    }
+    
+}
+
+
+
+
+
+@code {
+    public string? imgForMovie;
+    public List<Class.Movie?> searchedMovies;
+    [Parameter]
+    public string? movieTitle { get; set; }
+    private string searchQuery = "";
+    public string[] arrayImg;
+    public void Search()
+    {
+
+        if (searchQuery != null)
+        {
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                searchedMovies = db.Movies.Where(m => m.movieTitles.Contains(searchQuery)).
+                                    Include(m => m.actors).Include(m => m.director)
+                                    .Include(m => m.tag).ToList() ;
+
+
+
+            }
+
+        }
+    }
+
+
+    public void help_for_navig(string title, string link)
+    {
+        searchQuery = title;
+        Search();
+        if (NavigationManager != null)
+            { NavigationManager.NavigateTo(link); }
+        
+        //SearchMovies();
+    }
+    public void SearchMovies()
+    {
+
+        if (searchQuery != null)
+        {
+
+            NavigationManager.NavigateTo($"/movie/{searchQuery.Replace(" ", "_")}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/movie/emptyPage");
+        }
+
+    }
+
+
+    public async Task GetImagesLinks(List<Class.Movie> movies)
+    {
+        string apiKey = "14d808f4";
+        arrayImg = new string[movies.Count];
+        Parallel.ForEach(movies, async movie =>
+        {
+            string url = $"http://www.omdbapi.com/?i={movie.MovieCode}&apikey={apiKey}";
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    string info = client.DownloadString(url);
+                    int start = info.IndexOf("Poster") + 9;
+                    int end = info.IndexOf("Ratings") - 3;
+                    arrayImg[movies.IndexOf(movie)] = info.Substring(start, end - start);
+                }
+            }
+            catch
+            {
+                arrayImg[movies.IndexOf(movie)] = "";
+            }
+        });
+    }
+}

@@ -1,0 +1,107 @@
+﻿@using Microsoft.EntityFrameworkCore;
+@using System.Text;
+@using BlazorApp1.Class;
+@inject NavigationManager NavigationManager;
+@page "/person/{moviePerson?}"
+
+
+<PageTitle>Фильмы</PageTitle>
+
+<h4>Поиск по актерам</h4>
+
+
+<div class="searchSection">
+    <input type="text" @bind="searchQuery" placeholder="Enter search query" style="width: 900px; height: 40px;" />
+    <button @onclick="Search" style="height: 40px;">Search</button>
+</div>
+
+
+
+@using (ApplicationContext db = new ApplicationContext())
+{
+    @if (moviePerson != null)
+    {
+        searchedPerson = db.Actors.Where(a => a.Name == moviePerson).ToList();
+        foreach (Class.Person prs in searchedPerson)
+        {
+            var movies = db.Movies.Include(m => m.actors).Where(m => m.actors.Any(a => a.PerCode == prs.PerCode)).ToList();
+            prs.Movies = movies;
+        }
+
+    }
+}
+
+
+@if (searchedPerson != null)
+{
+    foreach (Class.Person person in searchedPerson)
+    {
+        <div class="box-for-movie">
+            <div class="box_for_img">
+                <img src=@imgForMovie width="150">
+            </div>
+
+            <h5>@person.Name</h5>
+
+            
+            <p>
+                Снялся в следующих фильмах
+                @if (person.Movies != null)
+                {
+                    <ul>
+                        @foreach (var movie in person.Movies)
+                        {
+                            string link = "/movie/" + movie.movieTitles.Replace(" ", "%20");
+                            <li><a href="@link">@movie.movieTitles</a></li>
+                        }
+                    </ul>
+                }
+            </p>
+        </div>
+    }
+
+}
+
+
+
+@code {
+
+    public string? imgForMovie;
+    public List<Class.Person?> searchedPerson;
+    public Class.Person currentPerson;
+    [Parameter]
+    public string? moviePerson{ get; set; }
+
+    public string? actor { get; set; }
+    private string searchQuery = "";
+
+    public void Search()
+    {
+
+        if (searchQuery != null)
+        {
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                currentPerson = db.Actors.FirstOrDefault(prs => prs.Name == searchQuery);
+                NavigationManager.NavigateTo($"/person/{currentPerson.Name}");
+
+            }
+
+        }
+    }
+
+    public void SearchMovies()
+    {
+
+        if (searchQuery != null)
+        {
+
+            NavigationManager.NavigateTo($"/movie/{searchQuery.Replace(" ", "_")}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/movie/emptyPage");
+        }
+
+    }
+}

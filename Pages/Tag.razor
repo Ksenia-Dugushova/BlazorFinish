@@ -1,0 +1,88 @@
+﻿@using Microsoft.EntityFrameworkCore;
+@using System.Text;
+@using BlazorApp1.Class;
+@inject NavigationManager NavigationManager;
+@page "/tags/{movieTag?}"
+
+
+<PageTitle>Фильмы</PageTitle>
+
+<h3>Поиск по тегам</h3>
+
+
+
+
+
+
+<div class="searchSection">
+    <input type="text" @bind="searchQuery" placeholder="Enter search query" style="width: 900px; height: 40px;" />
+    <button @onclick="Search" style="height: 40px;">Search</button>
+</div>
+
+@using (ApplicationContext db = new ApplicationContext()){
+    @if (currentTag != null)
+                    {
+                        <h4>@currentTag.Name</h4>
+                        var movies = db.Movies.Include(m => m.tag).Where(m => m.tag.Any(t => t.Name == currentTag.Name));
+                        if (movies.Count() > 0)
+                        {
+                            currentTag.Movies = new HashSet<Class.Movie>(movies);
+                            <div class="box_for_tag">
+                            <ul>
+                                    @foreach (Class.Movie movie in currentTag.Movies)
+
+                                    {
+                                        //Class.Tag tag = db.Tag.FirstOrDefault(m => m.MovieCode == new_movie);
+                                        string new_Title = movie.movieTitles;
+                                        string link = "/movie/" + new_Title.Replace(" ", "%20");
+                                        Movie newPage = new Movie();
+                                        //<li><a class="tag-link" @onclick="() => newPage.help_for_navig(new_Title, link)">@new_Title</a></li>
+                                        <li> <a class=" tag - link" href="@link">@new_Title</a></li>
+                                    }
+
+                            </ul>
+                            </div>
+                        }
+                    }
+                    }
+
+@code {
+
+    public string? imgForMovie;
+    public List<Class.Tag?> searchedTags;
+    public Class.Tag currentTag;
+    [Parameter]
+    public string? movieTag { get; set; }
+    private string searchQuery = "";
+
+    public void Search()
+    {
+
+        if (searchQuery != null)
+        {
+            using (ApplicationContext db = new ApplicationContext())
+            {
+                currentTag = db.Tags.FirstOrDefault(tag => tag.Name == searchQuery);
+                NavigationManager.NavigateTo($"/tags/{currentTag.Name}");
+
+            }
+
+        }
+    }
+
+    public void SearchMovies()
+    {
+
+        if (searchQuery != null)
+        {
+
+            NavigationManager.NavigateTo($"/movie/{searchQuery.Replace(" ", "_")}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/movie/emptyPage");
+        }
+
+    }
+
+}
